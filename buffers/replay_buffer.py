@@ -45,12 +45,13 @@ class ReplayBuffer:
                 self.current_episodes[batch_index] = defaultdict(list)
 
     def sample(self) -> Dict[str, torch.Tensor]:
-        batch_dict = next(self.iterator)
-
-        for key, value in batch_dict.items():
-            batch_dict[key] = value.to(self.dataset.fields[key].device)
-
-        return batch_dict
+        if self.is_empty:
+            raise RuntimeError("Cannot sample from empty dataset.")
+        else:
+            batch_dict = next(self.iterator)
+            for key, value in batch_dict.items():
+                batch_dict[key] = value.to(self.dataset.fields[key].device)
+            return batch_dict
 
     @property
     def num_episodes(self) -> int:

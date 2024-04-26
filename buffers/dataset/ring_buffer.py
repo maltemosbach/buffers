@@ -89,8 +89,14 @@ class RingBufferDataset(EpisodeDataset):
         return False
 
     def iter(self) -> Dict[str, torch.Tensor]:
+        # Get indices of viable episodes.
+        if self.sequence_length is None:
+            viable_episode_indices = torch.arange(self.num_episodes)
+        else:
+            viable_episode_indices = torch.tensor([i for i in range(self.num_episodes) if
+                                                   self.episode_lengths[i] >= self.sequence_length])
         # Sample random episodes.
-        episode_indices = torch.randint(len(self.episode_boundaries), (self.chunk_size,))
+        episode_indices = viable_episode_indices[torch.randint(len(viable_episode_indices), (self.chunk_size,))]
         # Get tensor of episode boundaries.
         selected_boundaries = torch.tensor([self.episode_boundaries[i] for i in episode_indices])
 
@@ -115,3 +121,15 @@ class RingBufferDataset(EpisodeDataset):
 
         return {key: self.ring_buffer[key][sequence_indices].to(device=self.fields[key].device)
                 for key in self.ring_buffer.keys()}
+
+    @property
+    def is_empty(self) -> bool:
+        if self.num_episodes > 0:
+            viable_episode_indices = [i for i in range(self.num_episodes) if
+                                      self.episode_lengths[i] >= self.sequence_length]
+            if len(viable_episode_indices) > 0:
+                return False
+            else:
+                warnings.warn(f"Episodes have been stored to the buffer, but none are of sufficient length for sampling "
+                              f"sequence length {self.sequence_length}.")
+        return True
