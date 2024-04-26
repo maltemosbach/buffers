@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "buffers"
+version = "0.1.0"
+description = "Wrapping PyTorch's IterableDataset for efficient experience replay."
+readme = "README.md"
+authors = [
+  {name="Malte Mosbach", email="maltemosbach@gmail.com" }
+]
+dependencies = [
+    "torch",
+]
+
+[project.optional-dependencies]
+extras = [
+    "gymnasium",
+    "gymnasium[classic-control]",
+    "ipympl",
+    "matplotlib",
+    "notebook",
+    "pytest",
+    "tqdm"
+]
+
+[tool.setuptools]
+py-modules = ["buffers"]
