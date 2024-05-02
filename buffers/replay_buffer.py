@@ -1,8 +1,8 @@
 from collections import defaultdict
 from buffers.dataset.episode_dataset import EpisodeDataset
-from buffers.utils import to_batch
+from buffers.utils import Batcher
 import torch
-from typing import Dict, Optional, Union
+from typing import Dict, Optional
 
 
 class ReplayBuffer:
@@ -17,6 +17,7 @@ class ReplayBuffer:
         self.dataset = dataset
         self.dataloader = self.dataset.get_loader(batch_size, sequence_length, chunk_size, num_workers)
         self._iterator = None
+        self.batcher = Batcher()
         self.current_episodes = defaultdict(lambda: defaultdict(list))
 
     @property
@@ -25,24 +26,25 @@ class ReplayBuffer:
             self._iterator = iter(self.dataloader)
         return self._iterator
 
-    def add_step(self, step_data: Dict[str, torch.Tensor], done: Union[bool, torch.Tensor]) -> None:
+    def add_step(self, step_data: Dict[str, torch.Tensor], done: bool | torch.Tensor) -> None:
         """Add a batch of step data to the buffer.
 
         Adds a batch of step data from parallel environments where all step data is of shape [batch_size, *data_size].
 
         Args:
             step_data (Dict[str, torch.Tensor]): Batch of step data to add.
-            done (Union[bool, torch.Tensor]): Whether each episode is done.
+            done (bool | torch.Tensor): Whether each episode is done (was done for vectorized environments).
         """
-        step_data_batch, done_batch, batch_size = to_batch(step_data, done)
+        step_data_batch, was_done_batch = self.batcher(step_data, done)
 
-        for batch_index in range(batch_size):
+        for batch_index in range(self.batcher.batch_size):
+            if was_done_batch[batch_index]:
+                if len(self.current_episodes[batch_index]) > 0:
+                    self.dataset.add_episode(self.current_episodes[batch_index])
+                    self.current_episodes[batch_index] = defaultdict(list)
+
             for key, value in step_data_batch.items():
                 self.current_episodes[batch_index][key].append(value[batch_index])
-
-            if done_batch[batch_index]:
-                self.dataset.add_episode(self.current_episodes[batch_index])
-                self.current_episodes[batch_index] = defaultdict(list)
 
     def sample(self) -> Dict[str, torch.Tensor]:
         if self.is_empty:
