@@ -39,7 +39,7 @@ class ReplayBuffer:
 
         for batch_index in range(self.batcher.batch_size):
             if was_done_batch[batch_index]:
-                if len(self.current_episodes[batch_index]) > 0:
+                if len(self.current_episodes[batch_index].keys()) > 0 and len(next(iter(self.current_episodes[batch_index].values()))) > 1:
                     self.dataset.add_episode(self.current_episodes[batch_index])
                     self.current_episodes[batch_index] = defaultdict(list)
 
